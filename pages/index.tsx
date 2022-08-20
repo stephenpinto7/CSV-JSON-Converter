@@ -4,15 +4,8 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 import Head from 'next/head';
-import Grid from '@mui/material/Grid';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Card from '@mui/material/Card';
-import CardHeader from '@mui/material/CardHeader';
-import CardContent from '@mui/material/CardContent';
-import * as React from 'react';
+import { Card, CardActions, CardHeader, CardContent, Container, FormGroup, FormControlLabel, Grid, Switch, TextField, Typography } from '@mui/material';
+import { ChangeEvent, useState } from 'react';
 
 import { parse as parseCsv } from 'csv-parse/browser/esm/sync';
 
@@ -27,11 +20,56 @@ function HeadData() {
   );
 }
 
-const Home: NextPage = () => {
-  const [inputText, setInputText] = React.useState('');
-  const convertedText = React.useMemo(() => JSON.stringify(parseCsv(inputText, { columns: true }), null, '\t'), [inputText]);
+interface InputDataProps {
+  inputText: string,
+  updateText: (e: ChangeEvent<HTMLInputElement>) => unknown
+};
+function InputData({ inputText, updateText }: InputDataProps) {
+  return (
+    <Card>
+      <CardHeader title="Enter data to transform" />
+      <CardContent>
+        <TextField value={inputText} onChange={updateText} multiline rows={30} fullWidth />
+      </CardContent>
+    </Card>
+  );
+}
 
-  const updateText = (event: React.ChangeEvent<HTMLInputElement>) => {
+interface TransformedDataProps {
+  data: string;
+}
+function TransformedData({ data }: TransformedDataProps) {
+
+  const [pretty, setPretty] = useState(true);
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPretty(event.target.checked);
+  };
+  let convertedData;
+
+  try {
+    const csvData = parseCsv(data, { columns: true });
+    convertedData = JSON.stringify(csvData, null, pretty ? '\t' : '');
+  } catch (error) {
+    convertedData = JSON.stringify(error, null, '\t');
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Transformed text" />
+      <CardContent>
+        <FormGroup>
+          <FormControlLabel control={<Switch checked={pretty} onChange={handleChange} />} label="Pretty" />
+        </FormGroup>
+        <TextField value={convertedData} multiline rows={30} fullWidth />
+      </CardContent>
+    </Card>
+  );
+}
+
+const Home: NextPage = () => {
+  const [inputText, setInputText] = useState('');
+
+  const updateText = (event: ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
   }
 
@@ -44,22 +82,12 @@ const Home: NextPage = () => {
         </Typography>
       </Container>
       <Container component="main" maxWidth={false}>
-        <Grid container direction="row" alignItems="center" justifyContent="space-evenly">
+        <Grid container direction="row" alignItems="stretch" justifyContent="space-evenly">
           <Grid item xs={5}>
-            <Card>
-              <CardHeader title="Enter data to transform" />
-              <CardContent>
-                <TextField value={inputText} onChange={updateText} multiline rows={30} fullWidth />
-              </CardContent>
-            </Card>
+            <InputData inputText={inputText} updateText={updateText} />
           </Grid>
           <Grid item xs={5}>
-          <Card>
-              <CardHeader title="Transformed text" />
-              <CardContent>
-                <TextField value={convertedText} multiline rows={30} fullWidth />
-              </CardContent>
-            </Card>
+            <TransformedData data={inputText} />
           </Grid>
         </Grid>
       </Container>
