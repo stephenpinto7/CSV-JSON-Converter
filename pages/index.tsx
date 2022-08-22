@@ -4,10 +4,13 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 import Head from 'next/head';
-import { Card, CardActions, CardHeader, CardContent, Container, FormGroup, FormControlLabel, Grid, Switch, TextField, Typography } from '@mui/material';
-import { ChangeEvent, useState } from 'react';
-
+import { AppBar, Card, CardHeader, CardContent, Container, FormGroup, FormControlLabel, Grid, Select, type SelectChangeEvent, Switch, TextField, Toolbar, Typography, MenuItem, InputLabel, Paper, FormControl, FormHelperText, FormLabel, CssBaseline } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { parse as parseCsv } from 'csv-parse/browser/esm/sync';
+import { stringify as csvStringify } from 'csv-stringify/browser/esm/sync';
+import { Stack } from '@mui/system';
+
+type FormatType = 'CSV' | 'JSON';
 
 function HeadData() {
   return (
@@ -22,74 +25,134 @@ function HeadData() {
 
 interface InputDataProps {
   inputText: string,
-  updateText: (e: ChangeEvent<HTMLInputElement>) => unknown
+  updateText: (s: string) => void,
+  sourceFormats: FormatType[],
+  selectedFormat: FormatType,
+  selectFormat: (s: FormatType) => void,
 };
-function InputData({ inputText, updateText }: InputDataProps) {
+function InputData({ inputText, updateText, sourceFormats, selectedFormat, selectFormat }: InputDataProps) {
   return (
-    <Card>
-      <CardHeader title="Enter data to transform" />
-      <CardContent>
-        <TextField value={inputText} onChange={updateText} multiline rows={30} fullWidth />
-      </CardContent>
-    </Card>
+    <Paper elevation={6}>
+      <AppBar position="static" color="secondary">
+        <Toolbar>
+          <Typography variant="h5" component="h2">
+            Source Data
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Grid container spacing={3} padding={2}>
+        <Grid item xs={12}>
+          <FormControl size="small" sx={{ minWidth: '5em' }}>
+            <FormLabel>Source Format</FormLabel>
+            <Select variant="outlined" value={selectedFormat} onChange={e => selectFormat(e.target.value as FormatType)} >
+              {sourceFormats.map(format => <MenuItem key={format} value={format}>{format}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12}>
+          <TextField value={inputText} onChange={e => updateText(e.target.value)} multiline rows={8} fullWidth />
+        </Grid>
+      </Grid>
+    </Paper>
   );
 }
 
 interface TransformedDataProps {
   data: string;
+  targetFormats: FormatType[];
+  sourceFormat: FormatType;
+  targetFormat: FormatType;
+  setTargetFormat: (s: FormatType) => void
 }
-function TransformedData({ data }: TransformedDataProps) {
-
+function TransformedData({ data, targetFormats, sourceFormat, targetFormat, setTargetFormat }: TransformedDataProps) {
   const [pretty, setPretty] = useState(true);
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setPretty(event.target.checked);
-  };
+  let parsedData;
   let convertedData;
-
   try {
-    const csvData = parseCsv(data, { columns: true });
-    convertedData = JSON.stringify(csvData, null, pretty ? '\t' : '');
+    if (sourceFormat === 'CSV') {
+      parsedData = parseCsv(data, { columns: true });
+
+    } else if (sourceFormat === 'JSON') {
+      parsedData = JSON.parse(data);
+    } else {
+      throw Error(`Unknown source format type: ${sourceFormat}`);
+    }
+
+    if (targetFormat === 'CSV') {
+      convertedData = csvStringify(parsedData, { header: true });
+    } else if (targetFormat === 'JSON') {
+      convertedData = JSON.stringify(parsedData, null, pretty ? '\t' : '');
+    } else {
+      throw Error(`Unknown source format type: ${sourceFormat}`);
+    }
   } catch (error) {
     convertedData = JSON.stringify(error, null, '\t');
   }
 
   return (
-    <Card>
-      <CardHeader title="Transformed text" />
-      <CardContent>
-        <FormGroup>
-          <FormControlLabel control={<Switch checked={pretty} onChange={handleChange} />} label="Pretty" />
-        </FormGroup>
-        <TextField value={convertedData} multiline rows={30} fullWidth />
-      </CardContent>
-    </Card>
+    <Paper elevation={6}>
+      <AppBar position="static" color="secondary">
+        <Toolbar>
+          <Typography variant="h5" component="h2">
+            Converted Data
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Grid container spacing={3} padding={2} alignItems="center">
+        <Grid item xs={12} container spacing={3} alignItems="center">
+          <Grid item>
+            <FormControl size="small" sx={{ minWidth: '5em' }}>
+              <FormLabel>Target Format</FormLabel>
+              <Select variant="outlined" value={targetFormat} onChange={e => setTargetFormat(e.target.value as FormatType)} >
+                {targetFormats.map(format => <MenuItem key={format} value={format}>{format}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item>
+            <FormGroup>
+              <FormControlLabel control={<Switch checked={pretty} onChange={e => setPretty(e.target.checked)} />} label="Pretty" />
+            </FormGroup>
+          </Grid>
+        </Grid>
+        <Grid item xs={12}>
+          <TextField value={convertedData} multiline rows={8} fullWidth />
+        </Grid>
+      </Grid>
+    </Paper>
   );
 }
 
 const Home: NextPage = () => {
-  const [inputText, setInputText] = useState('');
+  const sourceFormats: FormatType[] = ['CSV', 'JSON'];
 
-  const updateText = (event: ChangeEvent<HTMLInputElement>) => {
-    setInputText(event.target.value);
-  }
+  const [inputText, setInputText] = useState('');
+  const [sourceFormat, setSourceFormat] = useState('' as FormatType);
+  const [targetFormat, setTargetFormat] = useState('' as FormatType);
+  const [targetFormats, setTargetFormats] = useState(sourceFormats.slice());
+
+  useEffect(() => {
+    if (sourceFormat === targetFormat) {
+      setTargetFormat('' as FormatType);
+    }
+    setTargetFormats(sourceFormats.filter((format) => format !== sourceFormat));
+  }, [sourceFormat]);
 
   return (
     <>
       <HeadData />
-      <Container maxWidth="lg">
-        <Typography variant="h4" component="h1" align="center" gutterBottom>
-          Welcome to the Data Converter!
-        </Typography>
-      </Container>
+      <CssBaseline />
+      <AppBar position="static" elevation={3} sx={{ mb: 2 }}>
+        <Toolbar>
+          <Typography variant="h4" component="h1">
+            Welcome to the Data Converter!
+          </Typography>
+        </Toolbar>
+      </AppBar>
       <Container component="main" maxWidth={false}>
-        <Grid container direction="row" alignItems="stretch" justifyContent="space-evenly">
-          <Grid item xs={5}>
-            <InputData inputText={inputText} updateText={updateText} />
-          </Grid>
-          <Grid item xs={5}>
-            <TransformedData data={inputText} />
-          </Grid>
-        </Grid>
+        <Stack spacing={5}>
+          <InputData inputText={inputText} updateText={setInputText} sourceFormats={sourceFormats} selectedFormat={sourceFormat} selectFormat={setSourceFormat} />
+          <TransformedData data={inputText} targetFormats={targetFormats} targetFormat={targetFormat} setTargetFormat={setTargetFormat} sourceFormat={sourceFormat} />
+        </Stack>
       </Container>
 
       <Container>
