@@ -76,7 +76,7 @@ function InputData({
         setParseError(JSON.stringify(error, null, "\t"));
       }
     }
-  }, [inputText]);
+  }, [inputText, selectedFormat, setData, setParseError]);
 
   return (
     <Paper elevation={6}>
@@ -278,7 +278,10 @@ const Home: NextPage = () => {
           </Stack>
         </Container>
         <Container>
-          <Typography variant="caption">Created by Stephen Pinto</Typography>
+          <Typography variant="caption">
+            Created by Stephen Pinto (
+            <a href="mailto:spinto7@hotmail.com">spinto7@hotmail.com</a>)
+          </Typography>
         </Container>
       </SnackbarProvider>
     </>
