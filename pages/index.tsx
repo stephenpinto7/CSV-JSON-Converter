@@ -6,7 +6,6 @@ import "@fontsource/roboto/700.css";
 import "@fontsource/inconsolata";
 import Head from "next/head";
 import {
-  Alert,
   AppBar,
   Button,
   Container,
@@ -22,9 +21,9 @@ import {
   Paper,
   FormControl,
   FormLabel,
-  CssBaseline,
+  CssBaseline
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { parse as parseCsv } from "csv-parse/browser/esm/sync";
 import { stringify as csvStringify } from "csv-stringify/browser/esm/sync";
 import { Stack } from "@mui/system";
@@ -46,39 +45,39 @@ function HeadData() {
   );
 }
 
-interface DisplayParseErrorProps {
-  parseError: string | null;
-}
-function DisplayParseError({ parseError }: DisplayParseErrorProps) {
-  return (
-    <>
-      {parseError !== null && (
-        <Grid item>
-          <Alert variant="filled" severity="error">
-            {parseError}
-          </Alert>
-        </Grid>
-      )}
-    </>
-  );
-}
-
 interface InputDataProps {
-  inputText: string;
-  updateText: (s: string) => void;
   sourceFormats: FormatType[];
   selectedFormat: FormatType;
   selectFormat: (s: FormatType) => void;
-  parseError: string;
+  setData: (d: unknown) => void;
+  setParseError: (s: string) => void;
 }
 function InputData({
-  inputText,
-  updateText,
   sourceFormats,
   selectedFormat,
   selectFormat,
-  parseError
+  setParseError,
+  setData
 }: InputDataProps) {
+  const [inputText, setInputText] = useState("");
+
+  useEffect(() => {
+    try {
+      if (selectedFormat === "CSV") {
+        setData(parseCsv(inputText, { columns: true }));
+      } else {
+        setData(JSON.parse(inputText));
+      }
+      setParseError(""); // Clear potential error
+    } catch (error) {
+      if (error instanceof Error) {
+        setParseError(`${error.name} - ${error.message}`);
+      } else {
+        setParseError(JSON.stringify(error, null, "\t"));
+      }
+    }
+  }, [inputText]);
+
   return (
     <Paper elevation={6}>
       <AppBar position="static" color="secondary">
@@ -106,12 +105,11 @@ function InputData({
               </Select>
             </FormControl>
           </Grid>
-          <DisplayParseError parseError={parseError} />
         </Grid>
         <Grid item xs={12}>
           <TextField
             value={inputText}
-            onChange={(e) => updateText(e.target.value)}
+            onChange={(e) => setInputText(e.target.value)}
             multiline
             rows={8}
             fullWidth
@@ -126,76 +124,56 @@ function InputData({
 }
 
 interface TransformedDataProps {
-  data: string;
+  data: unknown;
   sourceFormat: FormatType;
-  setParseError: (s: string | null) => void;
+  parseError: string;
 }
 function TransformedData({
   data,
   sourceFormat,
-  setParseError
+  parseError
 }: TransformedDataProps) {
   const [pretty, setPretty] = useState(true);
-  let parsedData: unknown[] | null = null;
-  let convertedData: string | null = null;
+  const targetFormat = sourceFormat === "CSV" ? "JSON" : "CSV";
   const { enqueueSnackbar } = useSnackbar();
 
-  const targetFormat = sourceFormat === "CSV" ? "JSON" : "CSV";
-  try {
-    if (sourceFormat === "CSV") {
-      parsedData = parseCsv(data, { columns: true });
-    } else if (sourceFormat === "JSON") {
-      try {
-        parsedData = JSON.parse(data);
-        let errorSet = false;
-        if (!Array.isArray(parsedData)) {
-          setParseError("Top level JSON should be an array.");
-          errorSet = true;
-        } else {
-          const validTypes = ["number", "string", "boolean"];
-          for (const entry of parsedData) {
-            if (typeof entry !== "object" || entry === null) {
-              setParseError("JSON should be an array of objects.");
-              errorSet = true;
-              break;
-            } else {
-              for (const key of Object.keys(entry)) {
-                if (
-                  !validTypes.includes(
-                    typeof (entry as Record<string, string>)[key]
-                  )
-                ) {
-                  setParseError(
-                    "Properties on the objects should be primitive types."
-                  );
-                  errorSet = true;
-                  break;
-                }
-              }
-            }
+  if (!Array.isArray(data)) {
+    parseError = "Top level JSON should be an array";
+  } else {
+    const validTypes = ["number", "string", "boolean"];
+    for (const entry of data) {
+      if (typeof entry !== "object" || entry === null) {
+        parseError = "JSON should be an array of objects.";
+      } else {
+        for (const key of Object.keys(entry)) {
+          if (!validTypes.includes(typeof entry[key])) {
+            parseError = `Properties on the objects should be primitive types, got ${typeof entry[
+              key
+            ]}`;
+            break;
           }
         }
-
-        if (!errorSet) {
-          setParseError(null);
-        }
-      } catch (error) {
-        console.error("Parse error: %o", error);
-        setParseError((error as SyntaxError).message);
       }
-    } else {
-      throw Error(`Unknown source format type: ${sourceFormat}`);
     }
+  }
 
-    if (targetFormat === "CSV") {
-      convertedData = csvStringify(parsedData!, { header: true });
-    } else if (targetFormat === "JSON") {
-      convertedData = JSON.stringify(parsedData, null, pretty ? "\t" : "");
-    } else {
-      throw Error(`Unknown source format type: ${sourceFormat}`);
+  let convertedData = "";
+  if (parseError.length === 0) {
+    try {
+      if (sourceFormat === "CSV") {
+        convertedData = JSON.stringify(data, null, pretty ? "\t" : "");
+      } else {
+        convertedData = csvStringify(data as object[], { header: true });
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        convertedData = `${error.name} - ${error.message}`;
+      } else {
+        convertedData = JSON.stringify(error, null, "\t");
+      }
     }
-  } catch (error) {
-    convertedData = JSON.stringify(error, null, "\t");
+  } else {
+    convertedData = parseError;
   }
 
   const copyToClipboard = async () => {
@@ -267,9 +245,9 @@ function TransformedData({
 const Home: NextPage = () => {
   const sourceFormats: FormatType[] = ["CSV", "JSON"];
 
-  const [inputText, setInputText] = useState("");
+  const [data, setData] = useState<unknown>(null);
   const [sourceFormat, setSourceFormat] = useState<FormatType>("CSV");
-  const [parseError, setParseError] = useState<string | null>(null);
+  const [parseError, setParseError] = useState("");
 
   return (
     <>
@@ -286,17 +264,16 @@ const Home: NextPage = () => {
         <Container component="main" maxWidth={false}>
           <Stack spacing={5}>
             <InputData
-              inputText={inputText}
-              updateText={setInputText}
               sourceFormats={sourceFormats}
               selectedFormat={sourceFormat}
               selectFormat={setSourceFormat}
-              parseError={parseError}
+              setParseError={setParseError}
+              setData={setData}
             />
             <TransformedData
-              data={inputText}
+              data={data}
               sourceFormat={sourceFormat}
-              setParseError={setParseError}
+              parseError={parseError}
             />
           </Stack>
         </Container>
