@@ -280,7 +280,14 @@ const Home: NextPage = () => {
         <Container>
           <Typography variant="caption">
             Created by Stephen Pinto (
-            <a href="mailto:spinto7@hotmail.com">spinto7@hotmail.com</a>)
+            <a href="mailto:spinto7@hotmail.com">spinto7@hotmail.com</a>).
+            Source code available at{" "}
+            <a
+              target="blank"
+              href="https://github.com/stephenpinto7/CSV-JSON-Converter"
+            >
+              https://github.com/stephenpinto7/CSV-JSON-Converter
+            </a>
           </Typography>
         </Container>
       </SnackbarProvider>
