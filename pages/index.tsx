@@ -257,7 +257,7 @@ const Home: NextPage = () => {
         <AppBar position="static" elevation={3} sx={{ mb: 2 }}>
           <Toolbar>
             <Typography variant="h4" component="h1">
-              Welcome to the JSON/CSV Converter!
+              Welcome to the CSV/JSON Converter!
             </Typography>
           </Toolbar>
         </AppBar>
