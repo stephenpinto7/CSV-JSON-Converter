@@ -34,10 +34,10 @@ type FormatType = "CSV" | "JSON";
 function HeadData() {
   return (
     <Head>
-      <title>Data Converter</title>
+      <title>CSV/JSON Converter</title>
       <meta
         name="description"
-        content="An app to convert between various data formats"
+        content="An app to convert between CSV and JSON"
       />
       <meta name="viewport" content="initial-scale=1, width=device-width" />
       <link rel="icon" href="/favicon.ico" />
