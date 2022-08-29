@@ -23,7 +23,7 @@ A fully static site that converts between CSV and JSON data formats. The app ser
 ### Clone Repo and Install Dependencies
 
 ```bash
-git clone # TODO add URL
+git clone https://github.com/stephenpinto7/CSV-JSON-Converter.git
 npm install
 ```
 
